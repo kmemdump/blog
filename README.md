@@ -20,13 +20,37 @@ node build.js
 
 No package manager is required. Only Node.js is used.
 
+## Local preview
+
+Serve the current directory locally with the built-in Node.js script:
+
+```sh
+node serve.js
+```
+
+Then open:
+
+```text
+http://localhost:8080/
+```
+
+To use a different port:
+
+```sh
+node serve.js 3000
+# or
+PORT=3000 node serve.js
+```
+
+The script uses only Node.js standard library modules and serves `index.html` for directory requests.
+
 ## Typical edit/build flow
 
 ```sh
 git switch -c feature/my-change
 # edit essays/<name>.md or build.js
 node build.js
-git add build.js index.html essays assets README.md
+git add build.js serve.js index.html essays assets README.md
 git commit -m "Update site"
 git push -u origin feature/my-change
 ```
@@ -48,6 +72,7 @@ CNAME                         custom domain for GitHub Pages
 essays/                       source .md essays and generated .html pages
 assets/style.css              all CSS for the site
 build.js                      static site generator
+serve.js                      local preview server
 index.html                    generated homepage
 README.md                     this file
 INSTRUCTIONS.md               repository rules for contributors/LLMs
