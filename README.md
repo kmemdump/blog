@@ -44,17 +44,6 @@ PORT=3000 node serve.js
 
 The script uses only Node.js standard library modules and serves `index.html` for directory requests.
 
-## Typical edit/build flow
-
-```sh
-git switch -c feature/my-change
-# edit essays/<name>.md or build.js
-node build.js
-git add build.js serve.js index.html essays assets README.md
-git commit -m "Update site"
-git push -u origin feature/my-change
-```
-
 Then open a pull request and wait for human review/merge. Do not commit directly to `main`.
 
 ## Adding a new essay
