@@ -6,7 +6,7 @@ const essaysDir = path.join(root, 'essays');
 const assetsDir = path.join(root, 'assets');
 
 const siteTitle = "Krishen' Mohan s Blog";
-const siteTagline = 'Essays on software, work, and craft.';
+const siteTagline = 'My brain dump. Satirical if inflammatory. Enjoy';
 
 function escapeHtml(value) {
     return value
@@ -75,7 +75,6 @@ function buildEssay(fileName) {
     const body = `    <article class="essay">
       <header class="essay-header">
         <p class="eyebrow">Essay</p>
-        <h1>${escapeHtml(title)}</h1>
       </header>
 ${paragraphsFromMarkdown(markdown)}
     </article>`;
