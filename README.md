@@ -12,6 +12,8 @@ The source essays live in `essays/*.md`. The HTML pages are generated from those
 4. All styles live in `assets/style.css`; generated pages link to it.
 5. Essay body text is HTML-escaped before being written into the pages.
 
+The homepage essay list is ordered by each markdown file's creation timestamp, newest first. The build uses the first git commit that added the file; if git history is unavailable it falls back to the filesystem creation time, then modification time, then slug order as a final tie-break.
+
 To rebuild the site after editing an essay:
 
 ```sh

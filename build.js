@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const root = __dirname;
 const essaysDir = path.join(root, 'essays');
@@ -23,6 +24,32 @@ function titleFromSlug(slug) {
         .filter(Boolean)
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
+}
+
+function getGitCreatedAt(fileName) {
+    try {
+        const output = execFileSync(
+            'git',
+            ['log', '--diff-filter=A', '--reverse', '--format=%at', '--', `essays/${fileName}`],
+            { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+        );
+        const firstLine = output.split('\n').find((line) => line.trim());
+        const seconds = firstLine ? Number(firstLine.trim()) : NaN;
+
+        return Number.isFinite(seconds) ? seconds * 1000 : null;
+    } catch {
+        return null;
+    }
+}
+
+function getFileCreatedAt(filePath) {
+    const stats = fs.statSync(filePath);
+
+    return stats.birthtimeMs > 0 ? stats.birthtimeMs : stats.mtimeMs;
+}
+
+function essayCreatedAt(fileName) {
+    return getGitCreatedAt(fileName) ?? getFileCreatedAt(path.join(essaysDir, fileName));
 }
 
 function paragraphsFromMarkdown(markdown) {
@@ -68,9 +95,11 @@ ${body}
 }
 
 function buildEssay(fileName) {
+    const filePath = path.join(essaysDir, fileName);
     const slug = fileName.replace(/\.md$/, '');
     const title = titleFromSlug(slug);
-    const markdown = fs.readFileSync(path.join(essaysDir, fileName), 'utf8');
+    const createdAt = essayCreatedAt(fileName);
+    const markdown = fs.readFileSync(filePath, 'utf8');
     const description = `${title} — an essay from ${siteTitle}.`;
     const body = `    <article class="essay">
       <header class="essay-header">
@@ -83,6 +112,7 @@ ${paragraphsFromMarkdown(markdown)}
     return {
         slug,
         title,
+        createdAt,
         html: pageShell({
             title,
             description,
@@ -134,6 +164,10 @@ for (const essay of essays) {
     fs.writeFileSync(path.join(essaysDir, `${essay.slug}.html`), essay.html);
 }
 
-fs.writeFileSync(path.join(root, 'index.html'), buildIndex(essays));
+const newestFirst = [...essays].sort((a, b) => {
+    return b.createdAt - a.createdAt || a.slug.localeCompare(b.slug);
+});
+
+fs.writeFileSync(path.join(root, 'index.html'), buildIndex(newestFirst));
 
 console.log(`Built ${essays.length} essay pages and index.html`);
