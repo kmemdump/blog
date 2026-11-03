@@ -75,6 +75,7 @@ function buildEssay(fileName) {
     const body = `    <article class="essay">
       <header class="essay-header">
         <p class="eyebrow">Essay</p>
+        <h1>${escapeHtml(title)}</h1>
       </header>
 ${paragraphsFromMarkdown(markdown)}
     </article>`;
@@ -104,7 +105,6 @@ function buildIndex(essays) {
 
     const body = `    <section class="intro">
       <p class="eyebrow">Writing</p>
-      <h1>${escapeHtml(siteTitle)}</h1>
       <p class="tagline">${escapeHtml(siteTagline)}</p>
     </section>
     <section aria-labelledby="essays-heading">
