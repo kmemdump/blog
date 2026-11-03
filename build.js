@@ -5,7 +5,7 @@ const root = __dirname;
 const essaysDir = path.join(root, 'essays');
 const assetsDir = path.join(root, 'assets');
 
-const siteTitle = "Krishen' Mohan s Blog";
+const siteTitle = "Krishen Mohan's Blog";
 const siteTagline = 'My brain dump. Satirical if inflammatory. Enjoy';
 
 function escapeHtml(value) {
