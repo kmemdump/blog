@@ -43,14 +43,33 @@ Then open a pull request and wait for human review/merge. Do not commit directly
 ## Repository layout
 
 ```text
-essays/                 source .md essays and generated .html pages
-assets/style.css        all CSS for the site
-build.js                static site generator
-index.html              generated homepage
-README.md               this file
-INSTRUCTIONS.md         repository rules for contributors/LLMs
+.github/workflows/static.yml  GitHub Actions workflow that deploys to Pages
+CNAME                         custom domain for GitHub Pages
+essays/                       source .md essays and generated .html pages
+assets/style.css              all CSS for the site
+build.js                      static site generator
+index.html                    generated homepage
+README.md                     this file
+INSTRUCTIONS.md               repository rules for contributors/LLMs
 ```
 
 ## Deployment
 
-Deploy via GitHub Pages from the `main` branch root after the pull request is merged. See the PR description or project notes for the exact Pages settings.
+The site deploys to GitHub Pages with the Actions workflow in `.github/workflows/static.yml`, not with a Jekyll build.
+
+On every push to `main` (or when the workflow is run manually from the Actions tab), the workflow:
+
+1. Checks out the repository.
+2. Configures GitHub Pages.
+3. Uploads the repository root as the Pages artifact.
+4. Deploys that artifact to the `github-pages` environment.
+
+Because the deploy uploads the repository as-is, the generated HTML must be committed before merging. Run `node build.js`, commit the markdown and generated files together, and let the workflow deploy after the pull request merges.
+
+The `CNAME` file contains `blog.kmemdump.com`, so the site is served at:
+
+```text
+https://blog.kmemdump.com
+```
+
+The repository is not rebuilt on the Pages runner; it only publishes what is committed to `main`.
