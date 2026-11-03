@@ -98,7 +98,6 @@ function buildIndex(essays) {
         .map((essay) => `        <li class="essay-item">
           <a class="essay-link" href="essays/${essay.slug}.html">
             <span class="essay-link-title">${escapeHtml(essay.title)}</span>
-            <span class="essay-link-note">Read essay</span>
           </a>
         </li>`)
         .join('\n');
