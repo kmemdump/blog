@@ -62,7 +62,7 @@ function paragraphsFromMarkdown(markdown) {
         .join('\n');
 }
 
-function pageShell({ title, description, stylesheetPath, homePath, body }) {
+function pageShell({ title, description, stylesheetPath, homePath, body, extraHead = '', extraScripts = '' }) {
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -70,7 +70,7 @@ function pageShell({ title, description, stylesheetPath, homePath, body }) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="${escapeHtml(description)}">
   <title>${escapeHtml(title)} | ${escapeHtml(siteTitle)}</title>
-  <link rel="stylesheet" href="${stylesheetPath}">
+  <link rel="stylesheet" href="${stylesheetPath}">${extraHead}
 </head>
 <body>
   <header class="site-header">
@@ -78,6 +78,7 @@ function pageShell({ title, description, stylesheetPath, homePath, body }) {
       <a class="site-title" href="${homePath}">${escapeHtml(siteTitle)}</a>
       <nav class="site-nav" aria-label="Primary navigation">
         <a class="nav-link" href="${homePath}">Home</a>
+        <a class="nav-link" href="${homePath.replace('index.html', 'contact.html')}">Contact</a>
       </nav>
     </div>
   </header>
@@ -88,7 +89,7 @@ ${body}
     <div class="container">
       <a class="footer-link" href="${homePath}">Back to home</a>
     </div>
-  </footer>
+  </footer>${extraScripts}
 </body>
 </html>
 `;
@@ -152,6 +153,48 @@ ${items}
     });
 }
 
+function buildContactPage() {
+    const body = `    <section class="contact" aria-labelledby="contact-heading">
+      <p class="eyebrow">Contact Me</p>
+
+      <div id="contact-error" class="contact-error" role="alert" hidden></div>
+
+      <form id="contact-form" class="contact-form" novalidate>
+        <div class="form-field">
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" autocomplete="name" required maxlength="200">
+          <p class="field-error" data-error-for="name" hidden></p>
+        </div>
+        <div class="form-field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required maxlength="254">
+          <p class="field-error" data-error-for="email" hidden></p>
+        </div>
+        <div class="form-field">
+          <label for="subject">Subject</label>
+          <input id="subject" name="subject" type="text" autocomplete="off" required maxlength="200">
+          <p class="field-error" data-error-for="subject" hidden></p>
+        </div>
+        <div class="form-field">
+          <label for="message">Message</label>
+          <textarea id="message" name="message" rows="7" required maxlength="20000"></textarea>
+          <p class="field-error" data-error-for="message" hidden></p>
+        </div>
+        <button class="button" type="submit">Send Email</button>
+        <a id="mailto-fallback" class="button secondary" hidden>Open Email App Instead</a>
+      </form>
+    </section>`;
+
+    return pageShell({
+        title: 'Contact',
+        description: 'Contact form for Krishen Mohan.',
+        stylesheetPath: 'assets/style.css',
+        homePath: 'index.html',
+        body,
+        extraScripts: '\n  <script src="assets/contact.js"></script>',
+    });
+}
+
 fs.mkdirSync(assetsDir, { recursive: true });
 
 const essayFiles = fs.readdirSync(essaysDir)
@@ -169,5 +212,6 @@ const newestFirst = [...essays].sort((a, b) => {
 });
 
 fs.writeFileSync(path.join(root, 'index.html'), buildIndex(newestFirst));
+fs.writeFileSync(path.join(root, 'contact.html'), buildContactPage());
 
-console.log(`Built ${essays.length} essay pages and index.html`);
+console.log(`Built ${essays.length} essay pages, index.html and contact.html`);

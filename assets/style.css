@@ -199,6 +199,120 @@ h1 {
     background: rgba(255, 255, 255, 0.45);
 }
 
+.contact {
+    max-width: 42rem;
+}
+
+.contact-error {
+    margin: 1.5rem 0;
+    padding: 1rem 1.25rem;
+    border: 1px solid #b42318;
+    border-radius: 0.85rem;
+    background: #fef3f2;
+    color: #b42318;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 0.98rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.contact-form {
+    display: grid;
+    gap: 1.15rem;
+    margin-top: 2rem;
+    padding: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+.form-field {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.form-field label {
+    color: var(--muted);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.form-field input,
+.form-field textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--background);
+    color: var(--text);
+    font: inherit;
+    padding: 0.85rem 1rem;
+}
+
+.form-field input:focus-visible,
+.form-field textarea:focus-visible {
+    border-color: var(--accent);
+    outline: 3px solid rgba(138, 59, 18, 0.25);
+    outline-offset: 2px;
+}
+
+.form-field textarea {
+    resize: vertical;
+}
+
+.field-error {
+    margin: 0;
+    color: #b42318;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 3rem;
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    background: var(--accent);
+    color: #ffffff;
+    cursor: pointer;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 0.95rem;
+    font-weight: 800;
+    padding: 0.75rem 1.35rem;
+    text-decoration: none;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.button:hover,
+.button:focus-visible {
+    transform: translateY(-1px);
+    background: #6f2d0e;
+    box-shadow: 0 14px 30px rgba(138, 59, 18, 0.24);
+    outline: none;
+}
+
+.button:focus-visible {
+    outline: 3px solid rgba(138, 59, 18, 0.35);
+    outline-offset: 3px;
+}
+
+.button.secondary {
+    background: transparent;
+    color: var(--accent);
+}
+
+.button.secondary:hover,
+.button.secondary:focus-visible {
+    background: var(--accent-soft);
+}
+
 @media (max-width: 640px) {
     .header-inner {
         align-items: flex-start;
