@@ -48,13 +48,6 @@ The script uses only Node.js standard library modules and serves `index.html` fo
 
 Then open a pull request and wait for human review/merge. Do not commit directly to `main`.
 
-## Adding a new essay
-
-1. Add a new markdown file such as `essays/my-new-essay.md`.
-2. Use a lowercase, hyphenated filename; the filename becomes the page slug and the title is generated from it.
-3. Run `node build.js`.
-4. Commit both the markdown source and the generated HTML files.
-
 ## Repository layout
 
 ```text
