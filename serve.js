@@ -13,6 +13,15 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   process.exit(1);
 }
 
+function contactInjection() {
+  const encoded = CONTACT_PARTS.map((part) => encodeURIComponent(part)).join('|');
+  return `<script>try{sessionStorage.setItem(${JSON.stringify(CONTACT_STORAGE_KEY)},${JSON.stringify(encoded)});}catch(e){}</script>`;
+}
+
+function injectContactDetails(html) {
+  return html.replace('</body>', `${contactInjection()}\n</body>`);
+}
+
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
