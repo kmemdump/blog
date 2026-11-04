@@ -181,7 +181,6 @@ function buildContactPage() {
           <p class="field-error" data-error-for="message" hidden></p>
         </div>
         <button class="button" type="submit">Send Email</button>
-        <a id="mailto-fallback" class="button secondary" hidden>Open Email App Instead</a>
       </form>
     </section>`;
 

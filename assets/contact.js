@@ -2,7 +2,6 @@ const CONTACT_DETAILS = ['kmemdump', 'gmail.com'];
 
 const contactForm = document.getElementById('contact-form');
 const contactError = document.getElementById('contact-error');
-const mailtoFallback = document.getElementById('mailto-fallback');
 
 function contactEmail() {
     return CONTACT_DETAILS.join('@');
@@ -55,7 +54,7 @@ function buildMailto(values) {
     const subject = values.subject.trim();
     const message = values.message.trim();
 
-    const subjectLine = `[src:blog.kmemdump.com] ${subject}`;
+    const subjectLine = `[src:blog.kmemdump.com/contact] ${subject}`;
     const body = `Name: ${name}\nEmail: ${email}\n\n${message}`;
     const mailto = `mailto:${recipient}?subject=${encodeURIComponent(subjectLine)}&body=${encodeURIComponent(body)}`;
 
@@ -74,34 +73,19 @@ function openMailClient(mailtoLink) {
     link.remove();
 }
 
-function showEmailError(values) {
+function showEmailError(_) {
     if (!contactError) {
         return;
     }
 
     contactError.textContent = 'Could not send the email from this browser. Please try again or use the fallback below to open your email app.';
     contactError.hidden = false;
-
-    if (mailtoFallback) {
-        try {
-            mailtoFallback.href = buildMailto(values);
-        } catch {
-            mailtoFallback.href = `mailto:${contactEmail()}`;
-        }
-
-        mailtoFallback.hidden = false;
-        mailtoFallback.focus();
-    }
 }
 
 function hideEmailError() {
     if (contactError) {
         contactError.hidden = true;
         contactError.textContent = '';
-    }
-
-    if (mailtoFallback) {
-        mailtoFallback.hidden = true;
     }
 }
 
@@ -141,14 +125,17 @@ if (contactForm) {
 
         // Direct anchor click keeps this in the user-activation handler that
         // browsers require for opening the registered mail client.
-        openMailClient(mailtoLink);
+        try {
+            openMailClient(mailtoLink);
+        } catch {
 
-        setTimeout(() => {
-            if (document.visibilityState === 'hidden') {
-                return;
-            }
+            setTimeout(() => {
+                if (document.visibilityState === 'hidden') {
+                    return;
+                }
 
-            showEmailError(values);
-        }, 800);
+                showEmailError(values);
+            }, 800);
+        }
     });
 }
