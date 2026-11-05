@@ -9,6 +9,10 @@ const assetsDir = path.join(root, 'assets');
 const siteTitle = "Krishen Mohan's Blog";
 const siteTagline = 'My brain dump. Satirical if inflammatory. Enjoy';
 
+// CNAME is the single source of truth for the deployment domain (https://blog.kmemdump.com).
+const cnameDomain = fs.readFileSync(path.join(root, 'CNAME'), 'utf8').trim();
+const siteUrl = `https://${cnameDomain}`;
+
 function escapeHtml(value) {
     return value
         .replace(/&/g, '&amp;')
@@ -92,6 +96,46 @@ ${body}
   </footer>${extraScripts}
 </body>
 </html>
+`;
+}
+
+function escapeXml(value) {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+function toLastmod(timestamp) {
+    if (!timestamp) return '';
+    return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+function buildSitemap(essays) {
+    const newestLastmod = essays.length > 0
+        ? Math.max(...essays.map((essay) => essay.createdAt || 0))
+        : 0;
+
+    const urls = [
+        { loc: `${siteUrl}/`, lastmod: toLastmod(newestLastmod) },
+        { loc: `${siteUrl}/contact.html` },
+        ...essays.map((essay) => ({
+            loc: `${siteUrl}/essays/${essay.slug}.html`,
+            lastmod: toLastmod(essay.createdAt),
+        })),
+    ];
+
+    const entries = urls.map(({ loc, lastmod }) => {
+        const lastmodLine = lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : '';
+        return `  <url>\n    <loc>${escapeXml(loc)}</loc>${lastmodLine}\n  </url>`;
+    }).join('\n');
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries}
+</urlset>
 `;
 }
 
@@ -212,5 +256,6 @@ const newestFirst = [...essays].sort((a, b) => {
 
 fs.writeFileSync(path.join(root, 'index.html'), buildIndex(newestFirst));
 fs.writeFileSync(path.join(root, 'contact.html'), buildContactPage());
+fs.writeFileSync(path.join(root, 'sitemap.xml'), buildSitemap(newestFirst));
 
-console.log(`Built ${essays.length} essay pages, index.html and contact.html`);
+console.log(`Built ${essays.length} essay pages, index.html, contact.html and sitemap.xml`);
