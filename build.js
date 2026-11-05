@@ -4,6 +4,7 @@ const { execFileSync } = require('child_process');
 
 const root = __dirname;
 const essaysDir = path.join(root, 'essays');
+const essaysSrcDir = path.join(root, 'essays-src');
 const assetsDir = path.join(root, 'assets');
 
 const siteTitle = "Krishen Mohan's Blog";
@@ -27,11 +28,13 @@ function titleFromSlug(slug) {
 }
 
 function getGitCreatedAt(fileName) {
+    // essays-src is a symlink to the notes repo, so git history lives there, not in the blog repo.
+    const srcDir = fs.realpathSync(essaysSrcDir);
     try {
         const output = execFileSync(
             'git',
-            ['log', '--diff-filter=A', '--reverse', '--format=%at', '--', `essays/${fileName}`],
-            { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+            ['log', '--diff-filter=A', '--reverse', '--format=%at', '--', fileName],
+            { cwd: srcDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
         );
         const firstLine = output.split('\n').find((line) => line.trim());
         const seconds = firstLine ? Number(firstLine.trim()) : NaN;
@@ -49,7 +52,7 @@ function getFileCreatedAt(filePath) {
 }
 
 function essayCreatedAt(fileName) {
-    return getGitCreatedAt(fileName) ?? getFileCreatedAt(path.join(essaysDir, fileName));
+    return getGitCreatedAt(fileName) ?? getFileCreatedAt(path.join(essaysSrcDir, fileName));
 }
 
 function paragraphsFromMarkdown(markdown) {
@@ -96,7 +99,7 @@ ${body}
 }
 
 function buildEssay(fileName) {
-    const filePath = path.join(essaysDir, fileName);
+    const filePath = path.join(essaysSrcDir, fileName);
     const slug = fileName.replace(/\.md$/, '');
     const title = titleFromSlug(slug);
     const createdAt = essayCreatedAt(fileName);
@@ -195,8 +198,9 @@ function buildContactPage() {
 }
 
 fs.mkdirSync(assetsDir, { recursive: true });
+fs.mkdirSync(essaysDir, { recursive: true });
 
-const essayFiles = fs.readdirSync(essaysDir)
+const essayFiles = fs.readdirSync(essaysSrcDir)
     .filter((fileName) => fileName.endsWith('.md'))
     .sort((a, b) => a.localeCompare(b));
 
