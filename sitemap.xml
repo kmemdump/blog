@@ -8,7 +8,15 @@
     <loc>https://blog.kmemdump.com/contact.html</loc>
   </url>
   <url>
+    <loc>https://blog.kmemdump.com/essays/thermocline-of-truth.html</loc>
+    <lastmod>2026-11-05</lastmod>
+  </url>
+  <url>
     <loc>https://blog.kmemdump.com/essays/corporate-internal-affairs.html</loc>
+    <lastmod>2026-11-05</lastmod>
+  </url>
+  <url>
+    <loc>https://blog.kmemdump.com/essays/downfall-of-software.html</loc>
     <lastmod>2026-11-05</lastmod>
   </url>
   <url>
@@ -17,6 +25,6 @@
   </url>
   <url>
     <loc>https://blog.kmemdump.com/essays/the-software-mechanic.html</loc>
-    <lastmod>2026-11-03</lastmod>
+    <lastmod>2026-10-29</lastmod>
   </url>
 </urlset>
