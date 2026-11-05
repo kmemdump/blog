@@ -23,6 +23,23 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function formatDate(timestamp) {
+    return toDateTime(timestamp);
+}
+
+function toDateTime(timestamp) {
+    return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+function formatGmtDateTime(timestamp) {
+    // 2026-11-03 03:38:04 GMT
+    return new Date(timestamp).toISOString().slice(0, 19).replace('T', ' ') + ' GMT';
+}
+
+function toFullDateTime(timestamp) {
+    return new Date(timestamp).toISOString();
+}
+
 function titleFromSlug(slug) {
     return slug
         .split('-')
@@ -149,10 +166,12 @@ function buildEssay(fileName) {
     const createdAt = essayCreatedAt(fileName);
     const markdown = fs.readFileSync(filePath, 'utf8');
     const description = `${title} — an essay from ${siteTitle}.`;
+    const dateHtml = `        <p class="essay-date"><time datetime="${toFullDateTime(createdAt)}">${escapeHtml(formatGmtDateTime(createdAt))}</time></p>`;
     const body = `    <article class="essay">
       <header class="essay-header">
         <p class="eyebrow">Essay</p>
         <h1>${escapeHtml(title)}</h1>
+${dateHtml}
       </header>
 ${paragraphsFromMarkdown(markdown)}
     </article>`;
@@ -176,6 +195,7 @@ function buildIndex(essays) {
         .map((essay) => `        <li class="essay-item">
           <a class="essay-link" href="essays/${essay.slug}.html">
             <span class="essay-link-title">${escapeHtml(essay.title)}</span>
+            <span class="essay-link-date"><time datetime="${toDateTime(essay.createdAt)}">${escapeHtml(formatDate(essay.createdAt))}</time></span>
           </a>
         </li>`)
         .join('\n');
