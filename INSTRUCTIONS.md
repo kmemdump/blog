@@ -2,6 +2,7 @@
 
 - Never change the INSTRUCTIONS.md file or its contents
 - Never commit directly to the main branch of the repository
+- Never write files in the default folder, create a worktree instead
 - Allowed languages; javascript, html, css
 - Do not install package managers without permission from a human
 - Do not install external packages or dependencies to the application without
