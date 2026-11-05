@@ -9,8 +9,9 @@ The source essays live in `essays/*.md`. The HTML pages are generated from those
 1. `build.js` reads every `essays/*.md` file.
 2. It converts each markdown file into a standalone HTML page at `essays/<slug>.html`.
 3. It generates `index.html` with links to every generated essay page.
-4. All styles live in `assets/style.css`; generated pages link to it.
-5. Essay body text is HTML-escaped before being written into the pages.
+4. It generates `contact.html` and `sitemap.xml` with the home page, contact page, and every essay page. The sitemap base URL comes from `CNAME`.
+5. All styles live in `assets/style.css`; generated pages link to it.
+6. Essay body text is HTML-escaped before being written into the pages.
 
 The homepage essay list is ordered by each markdown file's creation timestamp, newest first. The build uses the first git commit that added the file; if git history is unavailable it falls back to the filesystem creation time, then modification time, then slug order as a final tie-break.
 
@@ -53,11 +54,13 @@ Then open a pull request and wait for human review/merge. Do not commit directly
 ```text
 .github/workflows/static.yml  GitHub Actions workflow that deploys to Pages
 CNAME                         custom domain for GitHub Pages
+robots.txt                    crawl rules (blocks LLM crawlers, references sitemap)
 essays/                       source .md essays and generated .html pages
 assets/style.css              all CSS for the site
 build.js                      static site generator
 serve.js                      local preview server
 index.html                    generated homepage
+sitemap.xml                   generated sitemap
 README.md                     this file
 INSTRUCTIONS.md               repository rules for contributors/LLMs
 ```
