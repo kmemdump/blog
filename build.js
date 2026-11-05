@@ -28,7 +28,8 @@ function toDateTime(timestamp) {
 }
 
 function formatGmtDateTime(timestamp) {
-    return new Date(timestamp).toUTCString();
+    // 2026-11-03 03:38:04 GMT
+    return new Date(timestamp).toISOString().slice(0, 19).replace('T', ' ') + ' GMT';
 }
 
 function toFullDateTime(timestamp) {
