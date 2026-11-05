@@ -27,6 +27,14 @@ function toDateTime(timestamp) {
     return new Date(timestamp).toISOString().slice(0, 10);
 }
 
+function formatGmtDateTime(timestamp) {
+    return new Date(timestamp).toUTCString();
+}
+
+function toFullDateTime(timestamp) {
+    return new Date(timestamp).toISOString();
+}
+
 function titleFromSlug(slug) {
     return slug
         .split('-')
@@ -113,7 +121,7 @@ function buildEssay(fileName) {
     const createdAt = essayCreatedAt(fileName);
     const markdown = fs.readFileSync(filePath, 'utf8');
     const description = `${title} — an essay from ${siteTitle}.`;
-    const dateHtml = `        <p class="essay-date"><time datetime="${toDateTime(createdAt)}">${escapeHtml(formatDate(createdAt))}</time></p>`;
+    const dateHtml = `        <p class="essay-date"><time datetime="${toFullDateTime(createdAt)}">${escapeHtml(formatGmtDateTime(createdAt))}</time></p>`;
     const body = `    <article class="essay">
       <header class="essay-header">
         <p class="eyebrow">Essay</p>

@@ -190,17 +190,17 @@ h1 {
 }
 
 .essay-header {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
     border-bottom: 1px solid var(--border);
 }
 
 .essay-date {
-    margin: 0.85rem 0 0;
+    margin: 1.5rem 0 0;
     color: var(--muted);
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 0.92rem;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .essay p {
