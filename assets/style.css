@@ -208,6 +208,21 @@ h1 {
     margin: 0 0 1.35rem;
 }
 
+.essay ul,
+.essay ol {
+    font-size: 1.075rem;
+    margin: 0 0 1.35rem;
+    padding-left: 1.5rem;
+}
+
+.essay li {
+    margin: 0 0 0.5rem;
+}
+
+.essay li:last-child {
+    margin-bottom: 0;
+}
+
 .site-footer {
     border-top: 1px solid var(--border);
     padding: 1.5rem 0;

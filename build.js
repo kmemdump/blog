@@ -76,14 +76,78 @@ function essayCreatedAt(fileName) {
     return getGitCreatedAt(fileName) ?? getFileCreatedAt(path.join(essaysSrcDir, fileName));
 }
 
+function isUnorderedListItem(line) {
+    return /^\s*[-*+]\s+/.test(line);
+}
+
+function isOrderedListItem(line) {
+    return /^\s*\d+[.)]\s+/.test(line);
+}
+
+function isListItem(line) {
+    return isUnorderedListItem(line) || isOrderedListItem(line);
+}
+
+function listItemText(line) {
+    return line.replace(/^\s*(?:[-*+]|\d+[.)])\s+/, '').trim();
+}
+
+function markdownToHtml(markdown) {
+    const blocks = [];
+    let paragraphLines = [];
+    let listItems = null;
+    let listType = null;
+
+    function flushParagraph() {
+        if (paragraphLines.length === 0) return;
+        const text = paragraphLines.join(' ').replace(/\s+/g, ' ').trim();
+        if (text) blocks.push(`        <p>${escapeHtml(text)}</p>`);
+        paragraphLines = [];
+    }
+
+    function flushList() {
+        if (!listItems || listItems.length === 0) return;
+        const tag = listType === 'ol' ? 'ol' : 'ul';
+        const items = listItems
+            .map((item) => `          <li>${escapeHtml(item)}</li>`)
+            .join('\n');
+        blocks.push(`        <${tag}>\n${items}\n        </${tag}>`);
+        listItems = null;
+        listType = null;
+    }
+
+    for (const rawLine of markdown.replace(/\r\n?/g, '\n').split('\n')) {
+        const line = rawLine.replace(/\s+$/, '');
+
+        if (!line.trim()) {
+            flushParagraph();
+            flushList();
+            continue;
+        }
+
+        if (isListItem(line)) {
+            flushParagraph();
+            const type = isOrderedListItem(line) ? 'ol' : 'ul';
+            if (listType !== type) {
+                flushList();
+                listType = type;
+                listItems = [];
+            }
+            listItems.push(listItemText(line).replace(/\s+/g, ' '));
+            continue;
+        }
+
+        flushList();
+        paragraphLines.push(line.trim());
+    }
+
+    flushParagraph();
+    flushList();
+    return blocks.join('\n');
+}
+
 function paragraphsFromMarkdown(markdown) {
-    return markdown
-        .trim()
-        .split(/\n\s*\n/)
-        .map((block) => block.replace(/\s*\n\s*/g, ' ').trim())
-        .filter(Boolean)
-        .map((block) => `        <p>${escapeHtml(block)}</p>`)
-        .join('\n');
+    return markdownToHtml(markdown);
 }
 
 function pageShell({ title, description, stylesheetPath, homePath, body, extraHead = '', extraScripts = '' }) {
