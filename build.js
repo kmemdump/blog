@@ -233,7 +233,6 @@ function buildEssay(fileName) {
     const dateHtml = `        <p class="essay-date"><time datetime="${toFullDateTime(createdAt)}">${escapeHtml(formatGmtDateTime(createdAt))}</time></p>`;
     const body = `    <article class="essay">
       <header class="essay-header">
-        <p class="eyebrow">Essay</p>
         <h1>${escapeHtml(title)}</h1>
 ${dateHtml}
       </header>
@@ -265,7 +264,6 @@ function buildIndex(essays) {
         .join('\n');
 
     const body = `    <section class="intro">
-      <p class="eyebrow">Writing</p>
       <p class="tagline">${escapeHtml(siteTagline)}</p>
     </section>
     <section aria-labelledby="essays-heading">
