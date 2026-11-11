@@ -11,7 +11,7 @@ link: https://creativecommons.org/licenses/by-nc/4.0/
 - /
 - /about
 - /contact
-- /entries/{yyyy}/{mm}/{title}
+- /entries/{yyyy}/{mm}/{dd}/{title-slug}
 - /entries/archive (fuzzy search, by title/ tags)
 - /entries/tags (tag cloud)
 - /art (photo collage)
