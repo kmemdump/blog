@@ -1,5 +1,3 @@
-# compare github pages and cloudflare pages
-
 # html prefix url stripping
 
 # add copyright to bottom of page example:
