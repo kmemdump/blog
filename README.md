@@ -1,13 +1,9 @@
 # blog
 
-# build system
 
-https://github.com/tsoding/nob.h
+## dependencies
 
-# html lib
-
-https://github.com/cozis/tinytemplate
-
-# markdown rendering
-
-https://github.com/zerodevx/zero-md
+1. https://github.com/tsoding/nob.h
+1. https://github.com/cozis/tinytemplate
+1. https://github.com/zerodevx/zero-md
+1. https://github.com/mrvladus/xml.h
