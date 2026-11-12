@@ -12,7 +12,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#define XML_H_IMPLEMENTATION
 #include "tinytemplate.h"
+#include "xml.h"
 
 #define ENTRIES_DIR "notes/essays"
 #define ASSETS_DIR "assets"
@@ -25,6 +27,7 @@
 #define TEMPLATES_DIR "templates"
 #define MAX_WORDS 65536
 #define MAX_WORD_LEN 128
+#define SITE_URL "https://blog.kmemdump.com"
 
 typedef struct {
     char* filename;
@@ -660,6 +663,49 @@ static int cmp_entries_name(const void* a, const void* b) {
     return strcmp(ea->filename, eb->filename);
 }
 
+static bool write_sitemap(const char* out_path, Entry* entries, size_t n) {
+    XMLNode* urlset = xml_node_new(NULL, "urlset", NULL);
+    if (!urlset) return false;
+    xml_node_add_attr(urlset, "xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9");
+
+    // index
+    XMLNode* index_url = xml_node_new(urlset, "url", NULL);
+    XMLNode* index_loc = xml_node_new(index_url, "loc", SITE_URL "/");
+    (void)index_loc;
+    const char* latest = NULL;
+    for (size_t i = 0; i < n; i++) {
+        if (!latest || strcmp(entries[i].iso_date, latest) > 0) latest = entries[i].iso_date;
+    }
+    if (latest) {
+        XMLNode* index_lastmod = xml_node_new(index_url, "lastmod", latest);
+        (void)index_lastmod;
+    }
+
+    for (size_t i = 0; i < n; i++) {
+        Entry* e = &entries[i];
+        char loc[PATH_MAX];
+        snprintf(loc, sizeof(loc), "%s%s", SITE_URL, e->url);
+        XMLNode* url = xml_node_new(urlset, "url", NULL);
+        XMLNode* loc_node = xml_node_new(url, "loc", loc);
+        (void)loc_node;
+        XMLNode* lastmod = xml_node_new(url, "lastmod", e->iso_date);
+        (void)lastmod;
+    }
+
+    XMLString* str = xml_string_new();
+    if (!str) {
+        xml_node_free(urlset);
+        return false;
+    }
+    xml_string_append(str, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    xml_node_serialize(urlset, str);
+
+    bool ok = write_file(out_path, str->str);
+    xml_string_free(str);
+    xml_node_free(urlset);
+    return ok;
+}
+
 int main(void) {
     Template entry_tmpl, index_tmpl;
     if (!template_load(&entry_tmpl, TEMPLATES_DIR "/entry.html")) return 1;
@@ -770,6 +816,11 @@ int main(void) {
     // index
     if (!render_index(&index_tmpl, OUT_DIR "/index.html", entries, n)) return 1;
 
-    printf("Generated %zu entries and index.html in %s\n", n, OUT_DIR);
+    if (!write_sitemap(OUT_DIR "/sitemap.xml", entries, n)) {
+        fprintf(stderr, "Failed to write %s/sitemap.xml\n", OUT_DIR);
+        return 1;
+    }
+
+    printf("Generated %zu entries, index.html and sitemap.xml in %s\n", n, OUT_DIR);
     return 0;
 }
