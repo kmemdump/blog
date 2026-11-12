@@ -18,6 +18,8 @@
 #define TAGS_PATH ASSETS_DIR "/" TAGS_FILE
 #define OUT_DIR "build/dist"
 #define OUT_ARCHIVE_DIR "archive"
+#define ENTRY_MD_FILE "index.md"
+#define ZERO_MD_URL "https://cdn.jsdelivr.net/npm/zero-md@3?register"
 #define MAX_WORDS 65536
 #define MAX_WORD_LEN 128
 
@@ -350,33 +352,9 @@ static char *html_escape(const char *s) {
     return o;
 }
 
-static char *json_escape_string(const char *s) {
-    // returns escaped content without surrounding quotes
-    size_t extra = 0;
-    for (const unsigned char *p = (const unsigned char*)s; *p; p++) {
-        if (*p == '\\' || *p == '"' ) extra += 1;
-        else if (*p == '\n' || *p == '\r' || *p == '\t') extra += 1;
-        else if (*p < 0x20) extra += 5;
-    }
-    char *o = xmalloc(strlen(s) + extra + 1);
-    char *d = o;
-    for (const unsigned char *p = (const unsigned char*)s; *p; p++) {
-        if (*p == '\\') { *d++='\\'; *d++='\\'; }
-        else if (*p == '"') { *d++='\\'; *d++='"'; }
-        else if (*p == '\n') { *d++='\\'; *d++='n'; }
-        else if (*p == '\r') { *d++='\\'; *d++='r'; }
-        else if (*p == '\t') { *d++='\\'; *d++='t'; }
-        else if (*p < 0x20) { sprintf(d, "\\u%04x", *p); d += 6; }
-        else { *d++ = (char)*p; }
-    }
-    *d = 0;
-    return o;
-}
-
 static char *build_entry_html(const Entry *e) {
     char *title_e = html_escape(e->title);
     char *date_e = html_escape(e->iso_date);
-    char *md_json = json_escape_string(e->content);
     // tags html
     size_t tags_cap = 64;
     char *tags_html = xmalloc(tags_cap);
@@ -397,6 +375,7 @@ static char *build_entry_html(const Entry *e) {
         "  <title>";
     const char *tmpl2 =
         "</title>\n  <link rel=\"stylesheet\" href=\"/assets/style.css\">\n"
+        "  <script type=\"module\" src=\"" ZERO_MD_URL "\"></script>\n"
         "</head>\n<body>\n  <main class=\"page entry-page\">\n"
         "    <a class=\"back\" href=\"/\">&larr; index</a>\n"
         "    <header class=\"entry-header\">\n      <h1>";
@@ -404,21 +383,20 @@ static char *build_entry_html(const Entry *e) {
     const char *tmpl4 = "\">";
     const char *tmpl5 = "</time></div>\n        <div class=\"tags\">Tags: ";
     const char *tmpl6 = "</div>\n      </div>\n    </header>\n"
-        "    <article id=\"content\" class=\"entry-content\"></article>\n"
+        "    <zero-md class=\"entry-content\" src=\"";
+    const char *tmpl7 = ENTRY_MD_FILE "\"></zero-md>\n"
         "    <noscript><pre class=\"entry-raw\">";
-    const char *tmpl7 = "</pre></noscript>\n  </main>\n"
-        "  <script>window.__ENTRY_MARKDOWN__ = \"";
-    const char *tmpl8 = "\";</script>\n  <script src=\"/assets/entry.js\"></script>\n"
-        "</body>\n</html>\n";
+    const char *tmpl8 = "</pre></noscript>\n  </main>\n</body>\n</html>\n";
 
+    char *url_e = html_escape(e->url);
     char *md_html_esc = html_escape(e->content);
     size_t total = strlen(tmpl1)+strlen(title_e)+strlen(tmpl2)+strlen(title_e)+strlen(tmpl3)+
         strlen(date_e)+strlen(tmpl4)+strlen(date_e)+strlen(tmpl5)+strlen(tags_html)+
-        strlen(tmpl6)+strlen(md_html_esc)+strlen(tmpl7)+strlen(md_json)+strlen(tmpl8)+1;
+        strlen(tmpl6)+strlen(url_e)+strlen(tmpl7)+strlen(md_html_esc)+strlen(tmpl8)+1;
     char *out = xmalloc(total);
     sprintf(out, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", tmpl1,title_e,tmpl2,title_e,tmpl3,
-            date_e,tmpl4,date_e,tmpl5,tags_html,tmpl6,md_html_esc,tmpl7,md_json,tmpl8);
-    free(title_e); free(date_e); free(md_json); free(tags_html); free(md_html_esc);
+            date_e,tmpl4,date_e,tmpl5,tags_html,tmpl6,url_e,tmpl7,md_html_esc,tmpl8);
+    free(title_e); free(date_e); free(tags_html); free(url_e); free(md_html_esc);
     return out;
 }
 
@@ -563,6 +541,13 @@ int main(void) {
             return 1;
         }
         free(html);
+
+        char md_path[PATH_MAX + sizeof(ENTRY_MD_FILE) + 1];
+        snprintf(md_path, sizeof(md_path), "%s/%s", dirpath, ENTRY_MD_FILE);
+        if (!write_file(md_path, e->content)) {
+            fprintf(stderr, "Failed to write %s\n", md_path);
+            return 1;
+        }
     }
 
     // index
