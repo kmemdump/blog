@@ -17,6 +17,7 @@
 #define ENTRIES_DIR "notes/essays"
 #define ASSETS_DIR "assets"
 #define TAGS_FILE "tags"
+#define ROBOTS_FILE "robots.txt"
 #define TAGS_PATH ASSETS_DIR "/" TAGS_FILE
 #define OUT_DIR "build/dist"
 #define OUT_ARCHIVE_DIR "archive"
@@ -189,6 +190,17 @@ static bool copy_assets(void) {
     while (ok && (de = readdir(dir)) != NULL) {
         if (de->d_name[0] == '.') continue;
         if (strcmp(de->d_name, TAGS_FILE) == 0) continue;
+        if (strcmp(de->d_name, ROBOTS_FILE) == 0) {
+            char src[PATH_MAX], dst[PATH_MAX];
+            snprintf(src, sizeof(src), "%s/%s", ASSETS_DIR, de->d_name);
+            snprintf(dst, sizeof(dst), "%s/%s", OUT_DIR, de->d_name);
+            struct stat st;
+            if (stat(src, &st) != 0 || !S_ISREG(st.st_mode)) continue;
+            if (!copy_file(src, dst)) {
+                fprintf(stderr, "Failed to copy %s to %s\n", src, dst);
+                ok = false;
+            }
+        };
         char src[PATH_MAX], dst[PATH_MAX];
         snprintf(src, sizeof(src), "%s/%s", ASSETS_DIR, de->d_name);
         snprintf(dst, sizeof(dst), "%s/%s/%s", OUT_DIR, ASSETS_DIR, de->d_name);
