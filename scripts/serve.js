@@ -4,7 +4,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '..', 'build', 'dist');
 const requestedPort = process.env.PORT || process.argv[2] || 8080;
 const port = Number(requestedPort);
 

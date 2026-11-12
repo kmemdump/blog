@@ -13,7 +13,10 @@
 #include <unistd.h>
 
 #define ENTRIES_DIR "notes/writing/essays"
-#define TAGS_PATH "assets/tags"
+#define ASSETS_DIR "assets"
+#define TAGS_FILE "tags"
+#define TAGS_PATH ASSETS_DIR "/" TAGS_FILE
+#define OUT_DIR "build/dist"
 #define OUT_ARCHIVE_DIR "archive"
 #define MAX_WORDS 65536
 #define MAX_WORD_LEN 128
@@ -133,6 +136,48 @@ static bool write_file(const char *path, const char *content) {
     size_t len = strlen(content);
     bool ok = fwrite(content, 1, len, f) == len;
     if (fclose(f) != 0) ok = false;
+    return ok;
+}
+
+static bool copy_file(const char *src, const char *dst) {
+    FILE *in = fopen(src, "rb");
+    if (!in) return false;
+    FILE *out = fopen(dst, "wb");
+    if (!out) { fclose(in); return false; }
+    char buf[8192];
+    size_t n;
+    bool ok = true;
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (fwrite(buf, 1, n, out) != n) { ok = false; break; }
+    }
+    if (ferror(in)) ok = false;
+    fclose(in);
+    if (fclose(out) != 0) ok = false;
+    return ok;
+}
+
+// Copies every regular file in ASSETS_DIR to OUT_DIR/ASSETS_DIR, except the
+// tags list, which is generator input rather than site content.
+static bool copy_assets(void) {
+    if (!mkdir_p(OUT_DIR "/" ASSETS_DIR)) return false;
+    DIR *dir = opendir(ASSETS_DIR);
+    if (!dir) return false;
+    bool ok = true;
+    struct dirent *de;
+    while (ok && (de = readdir(dir)) != NULL) {
+        if (de->d_name[0] == '.') continue;
+        if (strcmp(de->d_name, TAGS_FILE) == 0) continue;
+        char src[PATH_MAX], dst[PATH_MAX];
+        snprintf(src, sizeof(src), "%s/%s", ASSETS_DIR, de->d_name);
+        snprintf(dst, sizeof(dst), "%s/%s/%s", OUT_DIR, ASSETS_DIR, de->d_name);
+        struct stat st;
+        if (stat(src, &st) != 0 || !S_ISREG(st.st_mode)) continue;
+        if (!copy_file(src, dst)) {
+            fprintf(stderr, "Failed to copy %s to %s\n", src, dst);
+            ok = false;
+        }
+    }
+    closedir(dir);
     return ok;
 }
 
@@ -490,22 +535,23 @@ int main(void) {
         free(md_words.items);
 
         char out_rel[PATH_MAX];
-        snprintf(out_rel, sizeof(out_rel), "%s/%s/%s/%s/%s/index.html", OUT_ARCHIVE_DIR, e->year, e->month, e->day, e->slug);
+        snprintf(out_rel, sizeof(out_rel), "%s/%s/%s/%s/%s/%s/index.html", OUT_DIR, OUT_ARCHIVE_DIR, e->year, e->month, e->day, e->slug);
         e->out_rel = xstrdup(out_rel);
         char url[PATH_MAX];
         snprintf(url, sizeof(url), "/%s/%s/%s/%s/%s/", OUT_ARCHIVE_DIR, e->year, e->month, e->day, e->slug);
         e->url = xstrdup(url);
     }
 
-    // ensure base dirs
-    mkdir_p("assets");
-    mkdir_p(OUT_ARCHIVE_DIR);
+    if (!copy_assets()) {
+        fprintf(stderr, "Failed to copy %s to %s\n", ASSETS_DIR, OUT_DIR "/" ASSETS_DIR);
+        return 1;
+    }
 
     // write entry pages
     for (size_t i = 0; i < n; i++) {
         Entry *e = &entries[i];
         char dirpath[PATH_MAX];
-        snprintf(dirpath, sizeof(dirpath), "%s/%s/%s/%s/%s", OUT_ARCHIVE_DIR, e->year, e->month, e->day, e->slug);
+        snprintf(dirpath, sizeof(dirpath), "%s/%s/%s/%s/%s/%s", OUT_DIR, OUT_ARCHIVE_DIR, e->year, e->month, e->day, e->slug);
         if (!mkdir_p(dirpath)) {
             fprintf(stderr, "Failed to create dir %s\n", dirpath);
             return 1;
@@ -521,12 +567,12 @@ int main(void) {
 
     // index
     char *index = build_index_html(entries, n);
-    if (!write_file("index.html", index)) {
-        fprintf(stderr, "Failed to write index.html\n");
+    if (!write_file(OUT_DIR "/index.html", index)) {
+        fprintf(stderr, "Failed to write %s\n", OUT_DIR "/index.html");
         return 1;
     }
     free(index);
 
-    printf("Generated %zu entries and index.html\n", n);
+    printf("Generated %zu entries and index.html in %s\n", n, OUT_DIR);
     return 0;
 }
