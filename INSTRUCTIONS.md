@@ -25,5 +25,6 @@
    markdown renderer with 80 column width
 1. when generating the entry the populate it with 2 metadata fields above the
    markdown renderer: published date (use ISO format), derive this date from the
-   date the file was last edited in git tracking; tags based the union of words
-   used in the markdown file and a list of tags in this repo; ./assets/tags
+   date the file was last edited in git tracking; tags based the intersect of
+   words used in the markdown file and a list of tags in this repo;
+   ./assets/tags
