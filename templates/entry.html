@@ -13,6 +13,7 @@
     <header class="entry-header">
       <h1>{{title}}</h1>
       <div class="meta">
+        <div class="created">Created: <time datetime="{{created}}">{{created}}</time></div>
         <div class="published">Published: <time datetime="{{published}}">{{published}}</time></div>
         <div class="tags">Tags: {% for tag in tags %}<span class="tag">{{tag}}</span>{% end %}</div>
       </div>

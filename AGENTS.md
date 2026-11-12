@@ -5,9 +5,13 @@
 - Implemented C site generator `src/main.c` (built via `nob.h`/`nob.c`)
   producing `index.html` and `/archive/{YYYY}/{MM}/{DD}/{title-slug}/index.html`
   for each essay markdown file.
-- Published date/URL date derived from each file's last git edit in the
-  submodule (`git -C notes log -1 --format=%aI -- writing/essays/<file>`), shown
-  in ISO format on entry pages.
+- Entry pages show two ISO dates, both from the submodule's git history:
+  Created (first, above) and Published. Created is the oldest commit that added
+  the file, following renames (`git -C notes log --follow --diff-filter=A
+  --format=%aI -- writing/essays/<file>`, last line) and sets the
+  `{YYYY}/{MM}/{DD}` in the entry URL. Published is the file's last edit (`git
+  -C notes log -1 --format=%aI -- writing/essays/<file>`). The index still shows
+  and sorts by the published date.
 - Tags: deterministic intersection of normalized tokens from markdown content
   and `assets/tags` (lowercased `[A-Za-z0-9]+` tokens, deduped and sorted).
 - Entry pages render markdown with `zero-md` v3, loaded from the jsDelivr CDN

@@ -30,9 +30,10 @@ typedef struct {
     char *stem;
     char *slug;
     char *title;
-    char *iso_date;
-    char date_ymd[11]; // YYYY-MM-DD
-    char year[5];
+    char *iso_date;    // published: last git edit
+    char *created_iso; // created: first git commit of the file
+    char date_ymd[11]; // published date, YYYY-MM-DD
+    char year[5];      // year, month and day of the created date, used in the URL
     char month[3];
     char day[3];
     char *content;
@@ -232,17 +233,37 @@ static char *get_last_edit_iso(const char *filepath_in_repo) {
     return out;
 }
 
+static char *get_created_iso(const char *filepath_in_repo) {
+    // Commits that added the file, following renames, newest first; the last
+    // line is the commit that first created it.
+    char cmd[PATH_MAX * 2];
+    snprintf(cmd, sizeof(cmd), "git -C notes log --follow --diff-filter=A --format=%%aI -- \"%s\"", filepath_in_repo);
+    char *out = run_command_capture(cmd);
+    if (!out || out[0] == '\0') {
+        if (out) free(out);
+        return xstrdup("1970-01-01T00:00:00Z");
+    }
+    char *last_line = strrchr(out, '\n');
+    if (!last_line) return out;
+    char *created = xstrdup(last_line + 1);
+    free(out);
+    return created;
+}
+
 static void derive_date_parts(Entry *e) {
     // iso like 2026-11-03T11:40:00+08:00 or ...Z
     memset(e->date_ymd, 0, sizeof(e->date_ymd));
     if (strlen(e->iso_date) >= 10) {
         memcpy(e->date_ymd, e->iso_date, 10);
         e->date_ymd[10] = 0;
-        memcpy(e->year, e->iso_date, 4); e->year[4] = 0;
-        memcpy(e->month, e->iso_date + 5, 2); e->month[2] = 0;
-        memcpy(e->day, e->iso_date + 8, 2); e->day[2] = 0;
     } else {
         strcpy(e->date_ymd, "1970-01-01");
+    }
+    if (strlen(e->created_iso) >= 10) {
+        memcpy(e->year, e->created_iso, 4); e->year[4] = 0;
+        memcpy(e->month, e->created_iso + 5, 2); e->month[2] = 0;
+        memcpy(e->day, e->created_iso + 8, 2); e->day[2] = 0;
+    } else {
         strcpy(e->year, "1970"); strcpy(e->month, "01"); strcpy(e->day, "01");
     }
 }
@@ -421,6 +442,7 @@ static void set_cstring(tinytemplate_value_t *value, const char *s) {
 // before it is handed to a template.
 typedef struct {
     char *title;
+    char *created;
     char *published;
     char *markdown_url;
     char *markdown;
@@ -439,6 +461,7 @@ static bool entry_view_next_tag(void *data, tinytemplate_value_t *value) {
 static bool entry_view_get(void *userp, const char *key, size_t len, tinytemplate_value_t *value) {
     EntryView *v = ((RenderCtx *)userp)->view;
     if (key_is(key, len, "title")) set_cstring(value, v->title);
+    else if (key_is(key, len, "created")) set_cstring(value, v->created);
     else if (key_is(key, len, "published")) set_cstring(value, v->published);
     else if (key_is(key, len, "markdown_url")) set_cstring(value, v->markdown_url);
     else if (key_is(key, len, "markdown")) set_cstring(value, v->markdown);
@@ -455,6 +478,7 @@ static bool render_entry(const Template *t, const Entry *e) {
 
     EntryView v = {
         .title = html_escape(e->title),
+        .created = html_escape(e->created_iso),
         .published = html_escape(e->iso_date),
         .markdown_url = html_escape(md_url),
         .markdown = html_escape(e->content),
@@ -466,7 +490,7 @@ static bool render_entry(const Template *t, const Entry *e) {
     bool ok = template_render(t, e->out_rel, entry_view_get, &v);
 
     for (size_t i = 0; i < v.tags_count; i++) free(v.tags[i]);
-    free(v.tags); free(v.title); free(v.published); free(v.markdown_url); free(v.markdown);
+    free(v.tags); free(v.title); free(v.created); free(v.published); free(v.markdown_url); free(v.markdown);
     return ok;
 }
 
@@ -581,6 +605,7 @@ int main(void) {
         char rel_in_repo[PATH_MAX];
         snprintf(rel_in_repo, sizeof(rel_in_repo), "writing/essays/%s", e->filename);
         e->iso_date = get_last_edit_iso(rel_in_repo);
+        e->created_iso = get_created_iso(rel_in_repo);
         derive_date_parts(e);
 
         char *fullpath = path_join2(ENTRIES_DIR, e->filename);
