@@ -1,10 +1,10 @@
 .PHONY: nob build site serve clean
 
 nob: nob.c nob.h
-	cc -Wall -Wextra -o nob nob.c
+	mkdir -p build
+	cc -Wall -Wextra -o build/nob nob.c
 
 build/blog-builder: nob src/main.c
-	mkdir -p build
 	./nob
 
 site: build/blog-builder
