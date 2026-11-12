@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
   nob_cmd_append(&cmd, "cc", "-Wall", "-Wextra", "-o",
                  BUILD_FOLDER "blog-builder", SRC_FOLDER "main.c");
 #else
-  nob_cmd_append(&cmd, "cl", "-I.", "/Fe:" BUILD_FOLDER "ssgc",
+  nob_cmd_append(&cmd, "cl", "-I.", "/Fe:" BUILD_FOLDER "blog-builder",
                  SRC_FOLDER "main.c");
 #endif
 
