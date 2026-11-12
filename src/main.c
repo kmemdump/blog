@@ -12,6 +12,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "tinytemplate.h"
+
 #define ENTRIES_DIR "notes/writing/essays"
 #define ASSETS_DIR "assets"
 #define TAGS_FILE "tags"
@@ -19,7 +21,7 @@
 #define OUT_DIR "build/dist"
 #define OUT_ARCHIVE_DIR "archive"
 #define ENTRY_MD_FILE "index.md"
-#define ZERO_MD_URL "https://cdn.jsdelivr.net/npm/zero-md@3?register"
+#define TEMPLATES_DIR "templates"
 #define MAX_WORDS 65536
 #define MAX_WORD_LEN 128
 
@@ -352,58 +354,161 @@ static char *html_escape(const char *s) {
     return o;
 }
 
-static char *build_entry_html(const Entry *e) {
-    char *title_e = html_escape(e->title);
-    char *date_e = html_escape(e->iso_date);
-    // tags html
-    size_t tags_cap = 64;
-    char *tags_html = xmalloc(tags_cap);
-    tags_html[0] = 0;
-    strcat(tags_html, "");
-    size_t tlen = 0;
-    for (size_t i = 0; i < e->tags_count; i++) {
-        char *te = html_escape(e->tags[i]);
-        size_t need = tlen + strlen(te) + 32;
-        if (need > tags_cap) { while (need > tags_cap) tags_cap *= 2; tags_html = xrealloc(tags_html, tags_cap); }
-        tlen += sprintf(tags_html + tlen, "<span class=\"tag\">%s</span>", te);
-        free(te);
+typedef struct {
+    char *src;
+    tinytemplate_instr_t *program;
+} Template;
+
+typedef struct {
+    FILE *out;
+    bool write_failed;
+    void *view;
+} RenderCtx;
+
+static bool template_load(Template *t, const char *path) {
+    t->program = NULL;
+    t->src = read_file(path);
+    if (!t->src) {
+        fprintf(stderr, "Failed to read template %s\n", path);
+        return false;
     }
-
-    const char *tmpl1 =
-        "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n"
-        "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        "  <title>";
-    const char *tmpl2 =
-        "</title>\n  <link rel=\"stylesheet\" href=\"/assets/style.css\">\n"
-        "  <script type=\"module\" src=\"" ZERO_MD_URL "\"></script>\n"
-        "</head>\n<body>\n  <main class=\"page entry-page\">\n"
-        "    <a class=\"back\" href=\"/\">&larr; index</a>\n"
-        "    <header class=\"entry-header\">\n      <h1>";
-    const char *tmpl3 = "</h1>\n      <div class=\"meta\">\n        <div class=\"published\">Published: <time datetime=\"";
-    const char *tmpl4 = "\">";
-    const char *tmpl5 = "</time></div>\n        <div class=\"tags\">Tags: ";
-    const char *tmpl6 = "</div>\n      </div>\n    </header>\n"
-        "    <zero-md class=\"entry-content\" src=\"";
-    const char *tmpl7 = ENTRY_MD_FILE "\"></zero-md>\n"
-        "    <noscript><pre class=\"entry-raw\">";
-    const char *tmpl8 = "</pre></noscript>\n  </main>\n</body>\n</html>\n";
-
-    char *url_e = html_escape(e->url);
-    char *md_html_esc = html_escape(e->content);
-    size_t total = strlen(tmpl1)+strlen(title_e)+strlen(tmpl2)+strlen(title_e)+strlen(tmpl3)+
-        strlen(date_e)+strlen(tmpl4)+strlen(date_e)+strlen(tmpl5)+strlen(tags_html)+
-        strlen(tmpl6)+strlen(url_e)+strlen(tmpl7)+strlen(md_html_esc)+strlen(tmpl8)+1;
-    char *out = xmalloc(total);
-    sprintf(out, "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", tmpl1,title_e,tmpl2,title_e,tmpl3,
-            date_e,tmpl4,date_e,tmpl5,tags_html,tmpl6,url_e,tmpl7,md_html_esc,tmpl8);
-    free(title_e); free(date_e); free(tags_html); free(url_e); free(md_html_esc);
-    return out;
+    char errmsg[256] = "";
+    size_t max_instr = 128;
+    for (;;) {
+        t->program = xrealloc(t->program, max_instr * sizeof(*t->program));
+        tinytemplate_status_t status = tinytemplate_compile(t->src, strlen(t->src), t->program, max_instr,
+                                                            NULL, errmsg, sizeof(errmsg));
+        if (status == TINYTEMPLATE_STATUS_DONE) return true;
+        if (status != TINYTEMPLATE_STATUS_EMEMORY) {
+            fprintf(stderr, "Failed to compile template %s: %s\n", path, errmsg);
+            return false;
+        }
+        max_instr *= 2;
+    }
 }
 
-static char *build_index_html(Entry *entries, size_t n) {
+static void render_write(void *userp, const char *str, size_t len) {
+    RenderCtx *ctx = userp;
+    if (fwrite(str, 1, len, ctx->out) != len) ctx->write_failed = true;
+}
+
+static bool template_render(const Template *t, const char *out_path, tinytemplate_getter_t params, void *view) {
+    RenderCtx ctx = { .out = fopen(out_path, "wb"), .write_failed = false, .view = view };
+    if (!ctx.out) {
+        fprintf(stderr, "Failed to open %s: %s\n", out_path, strerror(errno));
+        return false;
+    }
+    char errmsg[256] = "";
+    bool ok = tinytemplate_eval(t->src, t->program, &ctx, params, render_write,
+                                errmsg, sizeof(errmsg)) == TINYTEMPLATE_STATUS_DONE;
+    if (!ok) fprintf(stderr, "Failed to render %s: %s\n", out_path, errmsg);
+    if (fclose(ctx.out) != 0 || ctx.write_failed) {
+        fprintf(stderr, "Failed to write %s\n", out_path);
+        ok = false;
+    }
+    return ok;
+}
+
+static bool key_is(const char *key, size_t len, const char *name) {
+    return strlen(name) == len && memcmp(key, name, len) == 0;
+}
+
+static void set_cstring(tinytemplate_value_t *value, const char *s) {
+    tinytemplate_set_string(value, s, strlen(s));
+}
+
+// tinytemplate writes strings as-is, so every string in a view is HTML-escaped
+// before it is handed to a template.
+typedef struct {
+    char *title;
+    char *published;
+    char *markdown_url;
+    char *markdown;
+    char **tags;
+    size_t tags_count;
+    size_t tags_next;
+} EntryView;
+
+static bool entry_view_next_tag(void *data, tinytemplate_value_t *value) {
+    EntryView *v = data;
+    if (v->tags_next >= v->tags_count) return false;
+    set_cstring(value, v->tags[v->tags_next++]);
+    return true;
+}
+
+static bool entry_view_get(void *userp, const char *key, size_t len, tinytemplate_value_t *value) {
+    EntryView *v = ((RenderCtx *)userp)->view;
+    if (key_is(key, len, "title")) set_cstring(value, v->title);
+    else if (key_is(key, len, "published")) set_cstring(value, v->published);
+    else if (key_is(key, len, "markdown_url")) set_cstring(value, v->markdown_url);
+    else if (key_is(key, len, "markdown")) set_cstring(value, v->markdown);
+    else if (key_is(key, len, "tags")) {
+        v->tags_next = 0;
+        tinytemplate_set_array(value, v, entry_view_next_tag);
+    } else return false;
+    return true;
+}
+
+static bool render_entry(const Template *t, const Entry *e) {
+    char md_url[PATH_MAX + sizeof(ENTRY_MD_FILE)];
+    snprintf(md_url, sizeof(md_url), "%s%s", e->url, ENTRY_MD_FILE);
+
+    EntryView v = {
+        .title = html_escape(e->title),
+        .published = html_escape(e->iso_date),
+        .markdown_url = html_escape(md_url),
+        .markdown = html_escape(e->content),
+        .tags = xmalloc((e->tags_count ? e->tags_count : 1) * sizeof(char *)),
+        .tags_count = e->tags_count,
+    };
+    for (size_t i = 0; i < e->tags_count; i++) v.tags[i] = html_escape(e->tags[i]);
+
+    bool ok = template_render(t, e->out_rel, entry_view_get, &v);
+
+    for (size_t i = 0; i < v.tags_count; i++) free(v.tags[i]);
+    free(v.tags); free(v.title); free(v.published); free(v.markdown_url); free(v.markdown);
+    return ok;
+}
+
+typedef struct {
+    char *url;
+    char *title;
+    char *date;
+} IndexItem;
+
+typedef struct {
+    IndexItem *items;
+    size_t count;
+    size_t next;
+} IndexView;
+
+static bool index_item_get(void *data, const char *key, size_t len, tinytemplate_value_t *value) {
+    IndexItem *item = data;
+    if (key_is(key, len, "url")) set_cstring(value, item->url);
+    else if (key_is(key, len, "title")) set_cstring(value, item->title);
+    else if (key_is(key, len, "date")) set_cstring(value, item->date);
+    else return false;
+    return true;
+}
+
+static bool index_view_next_entry(void *data, tinytemplate_value_t *value) {
+    IndexView *v = data;
+    if (v->next >= v->count) return false;
+    tinytemplate_set_dict(value, &v->items[v->next++], index_item_get);
+    return true;
+}
+
+static bool index_view_get(void *userp, const char *key, size_t len, tinytemplate_value_t *value) {
+    IndexView *v = ((RenderCtx *)userp)->view;
+    if (!key_is(key, len, "entries")) return false;
+    v->next = 0;
+    tinytemplate_set_array(value, v, index_view_next_entry);
+    return true;
+}
+
+static bool render_index(const Template *t, const char *out_path, Entry *entries, size_t n) {
     // sort entries by date desc, then title
-    // simple insertion copy of indices
-    size_t *idx = xmalloc(n * sizeof(size_t));
+    size_t *idx = xmalloc((n ? n : 1) * sizeof(size_t));
     for (size_t i=0;i<n;i++) idx[i]=i;
     for (size_t i=1;i<n;i++) {
         size_t key=idx[i]; size_t j=i;
@@ -416,33 +521,21 @@ static char *build_index_html(Entry *entries, size_t n) {
         }
         idx[j]=key;
     }
-    const char *head =
-        "<!doctype html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n"
-        "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        "  <title>Blog</title>\n  <link rel=\"stylesheet\" href=\"/assets/style.css\">\n"
-        "</head>\n<body>\n  <main class=\"page\">\n    <h1>Index</h1>\n    <ul class=\"entry-list\">\n";
-    const char *foot = "    </ul>\n  </main>\n</body>\n</html>\n";
-    size_t cap = strlen(head)+strlen(foot)+128;
-    char *out = xmalloc(cap);
-    strcpy(out, head);
-    size_t len = strlen(out);
-    for (size_t ii=0; ii<n; ii++) {
-        Entry *e = &entries[idx[ii]];
-        char *t = html_escape(e->title);
-        char *d = html_escape(e->date_ymd);
-        char item[PATH_MAX + 512];
-        snprintf(item, sizeof(item),
-            "      <li><a href=\"%s\">%s</a> <span class=\"date\">%s</span></li>\n",
-            e->url, t, d);
-        size_t il = strlen(item);
-        if (len + il + strlen(foot) + 1 > cap) { while (len + il + strlen(foot) + 1 > cap) cap *= 2; out = xrealloc(out, cap); }
-        memcpy(out+len, item, il); len += il; out[len]=0;
-        free(t); free(d);
+
+    IndexView v = { .items = xmalloc((n ? n : 1) * sizeof(IndexItem)), .count = n, .next = 0 };
+    for (size_t i = 0; i < n; i++) {
+        Entry *e = &entries[idx[i]];
+        v.items[i].url = html_escape(e->url);
+        v.items[i].title = html_escape(e->title);
+        v.items[i].date = html_escape(e->date_ymd);
     }
-    if (len + strlen(foot) + 1 > cap) { cap = len + strlen(foot) + 1; out = xrealloc(out, cap); }
-    strcat(out, foot);
+
+    bool ok = template_render(t, out_path, index_view_get, &v);
+
+    for (size_t i = 0; i < n; i++) { free(v.items[i].url); free(v.items[i].title); free(v.items[i].date); }
+    free(v.items);
     free(idx);
-    return out;
+    return ok;
 }
 
 static int cmp_entries_name(const void *a, const void *b) {
@@ -451,6 +544,10 @@ static int cmp_entries_name(const void *a, const void *b) {
 }
 
 int main(void) {
+    Template entry_tmpl, index_tmpl;
+    if (!template_load(&entry_tmpl, TEMPLATES_DIR "/entry.html")) return 1;
+    if (!template_load(&index_tmpl, TEMPLATES_DIR "/index.html")) return 1;
+
     // collect markdown entries
     DIR *dir = opendir(ENTRIES_DIR);
     if (!dir) {
@@ -534,13 +631,7 @@ int main(void) {
             fprintf(stderr, "Failed to create dir %s\n", dirpath);
             return 1;
         }
-        char *html = build_entry_html(e);
-        if (!write_file(e->out_rel, html)) {
-            fprintf(stderr, "Failed to write %s\n", e->out_rel);
-            free(html);
-            return 1;
-        }
-        free(html);
+        if (!render_entry(&entry_tmpl, e)) return 1;
 
         char md_path[PATH_MAX + sizeof(ENTRY_MD_FILE) + 1];
         snprintf(md_path, sizeof(md_path), "%s/%s", dirpath, ENTRY_MD_FILE);
@@ -551,12 +642,7 @@ int main(void) {
     }
 
     // index
-    char *index = build_index_html(entries, n);
-    if (!write_file(OUT_DIR "/index.html", index)) {
-        fprintf(stderr, "Failed to write %s\n", OUT_DIR "/index.html");
-        return 1;
-    }
-    free(index);
+    if (!render_index(&index_tmpl, OUT_DIR "/index.html", entries, n)) return 1;
 
     printf("Generated %zu entries and index.html in %s\n", n, OUT_DIR);
     return 0;
