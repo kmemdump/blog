@@ -34,10 +34,10 @@ typedef struct {
     char* stem;
     char* slug;
     char* title;
-    char* iso_date;     // published: last git edit
-    char* created_iso;  // created: first git commit of the file
-    char date_ymd[11];  // published date, YYYY-MM-DD
-    char year[5];       // year, month and day of the created date, used in the URL
+    char* last_changed_iso;  // published: last git edit
+    char* created_iso;       // created: first git commit of the file
+    char date_ymd[11];       // published date, YYYY-MM-DD
+    char year[5];            // year, month and day of the created date, used in the URL
     char month[3];
     char day[3];
     char* content;
@@ -255,6 +255,18 @@ static char* run_command_capture(const char* cmd) {
     return out;
 }
 
+static void strip_timezone(char* iso) {
+    if (!iso) return;
+    char* t = strchr(iso, 'T');
+    if (!t) return;
+    for (char* p = t + 1; *p; p++) {
+        if (*p == 'Z' || *p == '+' || *p == '-') {
+            *p = '\0';
+            return;
+        }
+    }
+}
+
 static char* get_last_edit_iso(const char* filepath_in_repo) {
     // filepath_in_repo relative to notes repo, e.g. essays/foo.md
     char cmd[PATH_MAX * 2];
@@ -262,8 +274,9 @@ static char* get_last_edit_iso(const char* filepath_in_repo) {
     char* out = run_command_capture(cmd);
     if (!out || out[0] == '\0') {
         if (out) free(out);
-        return xstrdup("1970-01-01T00:00:00Z");
+        out = xstrdup("1970-01-01T00:00:00");
     }
+    strip_timezone(out);
     return out;
 }
 
@@ -275,20 +288,22 @@ static char* get_created_iso(const char* filepath_in_repo) {
     char* out = run_command_capture(cmd);
     if (!out || out[0] == '\0') {
         if (out) free(out);
-        return xstrdup("1970-01-01T00:00:00Z");
+        char* fallback = xstrdup("1970-01-01T00:00:00");
+        strip_timezone(fallback);
+        return fallback;
     }
     char* last_line = strrchr(out, '\n');
-    if (!last_line) return out;
-    char* created = xstrdup(last_line + 1);
-    free(out);
+    char* created = last_line ? xstrdup(last_line + 1) : out;
+    if (last_line) free(out);
+    strip_timezone(created);
     return created;
 }
 
 static void derive_date_parts(Entry* e) {
-    // iso like 2026-11-03T11:40:00+08:00 or ...Z
+    // iso like 2026-11-03T11:40:00+08:00 or 2026-11-03T11:40:00
     memset(e->date_ymd, 0, sizeof(e->date_ymd));
-    if (strlen(e->iso_date) >= 10) {
-        memcpy(e->date_ymd, e->iso_date, 10);
+    if (strlen(e->last_changed_iso) >= 10) {
+        memcpy(e->date_ymd, e->last_changed_iso, 10);
         e->date_ymd[10] = 0;
     } else {
         strcpy(e->date_ymd, "1970-01-01");
@@ -560,7 +575,7 @@ static bool render_entry(const Template* t, const Entry* e) {
     EntryView v = {
         .title = html_escape(e->title),
         .created = html_escape(e->created_iso),
-        .published = html_escape(e->iso_date),
+        .published = html_escape(e->last_changed_iso),
         .markdown_url = html_escape(md_url),
         .markdown = html_escape(e->content),
         .tags = xmalloc((e->tags_count ? e->tags_count : 1) * sizeof(char*)),
@@ -629,7 +644,7 @@ static bool render_index(const Template* t, const char* out_path, Entry* entries
         size_t j = i;
         while (j > 0) {
             Entry *a = &entries[idx[j - 1]], *b = &entries[key];
-            int c = strcmp(b->iso_date, a->iso_date);  // desc by date
+            int c = strcmp(b->created_iso, a->created_iso);  // desc by date
             if (c == 0) c = strcmp(a->title, b->title);
             if (c <= 0) break;
             idx[j] = idx[j - 1];
@@ -643,7 +658,7 @@ static bool render_index(const Template* t, const char* out_path, Entry* entries
         Entry* e = &entries[idx[i]];
         v.items[i].url = html_escape(e->url);
         v.items[i].title = html_escape(e->title);
-        v.items[i].date = html_escape(e->date_ymd);
+        v.items[i].date = html_escape(e->created_iso);
     }
 
     bool ok = template_render(t, out_path, index_view_get, &v);
@@ -674,7 +689,7 @@ static bool write_sitemap(const char* out_path, Entry* entries, size_t n) {
     (void)index_loc;
     const char* latest = NULL;
     for (size_t i = 0; i < n; i++) {
-        if (!latest || strcmp(entries[i].iso_date, latest) > 0) latest = entries[i].iso_date;
+        if (!latest || strcmp(entries[i].last_changed_iso, latest) > 0) latest = entries[i].last_changed_iso;
     }
     if (latest) {
         XMLNode* index_lastmod = xml_node_new(index_url, "lastmod", latest);
@@ -688,7 +703,7 @@ static bool write_sitemap(const char* out_path, Entry* entries, size_t n) {
         XMLNode* url = xml_node_new(urlset, "url", NULL);
         XMLNode* loc_node = xml_node_new(url, "loc", loc);
         (void)loc_node;
-        XMLNode* lastmod = xml_node_new(url, "lastmod", e->iso_date);
+        XMLNode* lastmod = xml_node_new(url, "lastmod", e->last_changed_iso);
         (void)lastmod;
     }
 
@@ -746,7 +761,7 @@ int main(void) {
 
         char rel_in_repo[PATH_MAX];
         snprintf(rel_in_repo, sizeof(rel_in_repo), "essays/%s", e->filename);
-        e->iso_date = get_last_edit_iso(rel_in_repo);
+        e->last_changed_iso = get_last_edit_iso(rel_in_repo);
         e->created_iso = get_created_iso(rel_in_repo);
         derive_date_parts(e);
 
