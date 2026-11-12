@@ -6,7 +6,3 @@
 - /archive/list
 - /archive/tags (tag cloud)
 - /art (photo collage)
-
-# html prefix url stripping
-
-# provide domain via environment variable
