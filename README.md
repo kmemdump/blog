@@ -1,16 +1,13 @@
-# Blog
+# blog
 
-A simple static blog for the essays in `essays/`. It is plain HTML, CSS, and a
-small Node.js build script. There are no runtime dependencies and nothing to
-install.
+# build system
 
-```sh node build.js ```
+https://github.com/tsoding/nob.h
 
-No package manager is required. Only Node.js is used.
+# html lib
 
-## Local preview
+https://github.com/cozis/tinytemplate
 
-Serve the current directory locally with the built-in Node.js script:
+# markdown rendering
 
-```sh node serve.js ```
-
+https://github.com/zerodevx/zero-md
