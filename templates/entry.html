@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/zero-md@3?register"></script>
+</head>
+<body>
+  <main class="page entry-page">
+    <a class="back" href="/">&larr; index</a>
+    <header class="entry-header">
+      <h1>{{title}}</h1>
+      <div class="meta">
+        <div class="created">Created: <time datetime="{{created}}">{{created}}</time></div>
+        <div class="published">Published: <time datetime="{{published}}">{{published}}</time></div>
+        <div class="tags">Tags: {% for tag in tags %}<span class="tag">{{tag}}</span>{% end %}</div>
+      </div>
+    </header>
+    <zero-md class="entry-content" src="{{markdown_url}}"></zero-md>
+    <noscript><pre class="entry-raw">{{markdown}}</pre></noscript>
+  </main>
+</body>
+</html>
