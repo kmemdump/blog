@@ -1,4 +1,4 @@
-.PHONY: nob build site serve clean
+.PHONY: nob build site serve clean deploy
 
 nob: nob.c nob.h
 	mkdir -p build
@@ -12,7 +12,10 @@ site: build
 	./build/blog-builder
 
 serve: site
-	node scripts/serve.js
+	wrangler pages dev build/dist
+
+deploy: site
+	wrangler pages deploy build/dist --project-name blog
 
 clean:
 	rm -rf build
