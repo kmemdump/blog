@@ -6,3 +6,5 @@
 - /archive/list
 - /archive/tags (tag cloud)
 - /art (photo collage)
+
+# c package manager?
