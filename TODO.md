@@ -15,3 +15,7 @@ Attribution-NonCommercial 4.0 International License.
 link: https://creativecommons.org/licenses/by-nc/4.0/
 
 # html prefix url stripping
+
+# misc
+- robots.txt
+- sitemap.xml
