@@ -4,10 +4,10 @@ nob: nob.c nob.h
 	mkdir -p build
 	cc -Wall -Wextra -o build/nob nob.c
 
-build/blog-builder: nob src/main.c
+build : nob src/main.c
 	./build/nob
 
-site: build/blog-builder
+site: build
 	rm -rf build/dist
 	./build/blog-builder
 
