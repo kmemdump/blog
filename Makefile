@@ -1,14 +1,17 @@
 .PHONY: nob build site serve clean deploy
 
 nob: nob.c nob.h
-	mkdir -p build
+	mkdir -p build && \
 	cc -Wall -Wextra -o build/nob nob.c
 
 build : nob src/main.c
 	./build/nob
 
 site: build
-	rm -rf build/dist
+	rm -rf build/dist && \
+	set -a && \
+	if [ -f .env ]; then . ./.env; fi && \
+	set +a && \
 	./build/blog-builder
 
 serve: site

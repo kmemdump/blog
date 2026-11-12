@@ -27,7 +27,6 @@
 #define TEMPLATES_DIR "templates"
 #define MAX_WORDS 65536
 #define MAX_WORD_LEN 128
-#define SITE_URL "https://blog.kmemdump.com"
 
 typedef struct {
     char* filename;
@@ -182,9 +181,50 @@ static bool copy_file(const char* src, const char* dst) {
     return ok;
 }
 
+static char* get_site_url(void) {
+    const char* domain = getenv("BLOG_DOMAIN");
+    if (!domain || !*domain) {
+        fprintf(stderr, "BLOG_DOMAIN is not set\n");
+        exit(1);
+    }
+    size_t len = strlen("https://") + strlen(domain) + 1;
+    char* url = xmalloc(len);
+    snprintf(url, len, "https://%s", domain);
+    return url;
+}
+
+static char* build_robots_txt(const char* src_path, const char* site_url) {
+    char* content = read_file(src_path);
+    if (!content) return NULL;
+    // replace Sitemap: line
+    char* line = strstr(content, "Sitemap:");
+    if (!line) {
+        // append if missing
+        size_t extra = strlen("\nSitemap: ") + strlen(site_url) + strlen("/sitemap.xml\n") + 1;
+        char* out = xmalloc(strlen(content) + extra);
+        sprintf(out, "%s\nSitemap: %s/sitemap.xml\n", content, site_url);
+        free(content);
+        return out;
+    }
+    char* eol = strchr(line, '\n');
+    size_t prefix_len = (size_t)(line - content);
+    const char* suffix = eol ? eol + 1 : "";
+    const char* label = "Sitemap: ";
+    size_t out_len = prefix_len + strlen(label) + strlen(site_url) + strlen("/sitemap.xml\n") + strlen(suffix) + 1;
+    char* out = xmalloc(out_len);
+    memcpy(out, content, prefix_len);
+    out[prefix_len] = '\0';
+    strcat(out, label);
+    strcat(out, site_url);
+    strcat(out, "/sitemap.xml\n");
+    strcat(out, suffix);
+    free(content);
+    return out;
+}
+
 // Copies every regular file in ASSETS_DIR to OUT_DIR/ASSETS_DIR, except the
 // tags list, which is generator input rather than site content.
-static bool copy_assets(void) {
+static bool copy_assets(const char* site_url) {
     if (!mkdir_p(OUT_DIR "/" ASSETS_DIR)) return false;
     DIR* dir = opendir(ASSETS_DIR);
     if (!dir) return false;
@@ -193,24 +233,28 @@ static bool copy_assets(void) {
     while (ok && (de = readdir(dir)) != NULL) {
         if (de->d_name[0] == '.') continue;
         if (strcmp(de->d_name, TAGS_FILE) == 0) continue;
-        if (strcmp(de->d_name, ROBOTS_FILE) == 0) {
-            char src[PATH_MAX], dst[PATH_MAX];
-            snprintf(src, sizeof(src), "%s/%s", ASSETS_DIR, de->d_name);
-            snprintf(dst, sizeof(dst), "%s/%s", OUT_DIR, de->d_name);
-            struct stat st;
-            if (stat(src, &st) != 0 || !S_ISREG(st.st_mode)) continue;
-            if (!copy_file(src, dst)) {
-                fprintf(stderr, "Failed to copy %s to %s\n", src, dst);
-                ok = false;
-            }
-        };
-        char src[PATH_MAX], dst[PATH_MAX];
+        char src[PATH_MAX], dst_assets[PATH_MAX];
         snprintf(src, sizeof(src), "%s/%s", ASSETS_DIR, de->d_name);
-        snprintf(dst, sizeof(dst), "%s/%s/%s", OUT_DIR, ASSETS_DIR, de->d_name);
+        snprintf(dst_assets, sizeof(dst_assets), "%s/%s/%s", OUT_DIR, ASSETS_DIR, de->d_name);
         struct stat st;
         if (stat(src, &st) != 0 || !S_ISREG(st.st_mode)) continue;
-        if (!copy_file(src, dst)) {
-            fprintf(stderr, "Failed to copy %s to %s\n", src, dst);
+
+        if (strcmp(de->d_name, ROBOTS_FILE) == 0) {
+            char dst_root[PATH_MAX];
+            snprintf(dst_root, sizeof(dst_root), "%s/%s", OUT_DIR, de->d_name);
+            char* robots = build_robots_txt(src, site_url);
+            if (!robots || !write_file(dst_root, robots) || !write_file(dst_assets, robots)) {
+                fprintf(stderr, "Failed to write robots.txt\n");
+                free(robots);
+                ok = false;
+            } else {
+                free(robots);
+            }
+            continue;
+        }
+
+        if (!copy_file(src, dst_assets)) {
+            fprintf(stderr, "Failed to copy %s to %s\n", src, dst_assets);
             ok = false;
         }
     }
@@ -678,14 +722,16 @@ static int cmp_entries_name(const void* a, const void* b) {
     return strcmp(ea->filename, eb->filename);
 }
 
-static bool write_sitemap(const char* out_path, Entry* entries, size_t n) {
+static bool write_sitemap(const char* out_path, const char* site_url, Entry* entries, size_t n) {
     XMLNode* urlset = xml_node_new(NULL, "urlset", NULL);
     if (!urlset) return false;
     xml_node_add_attr(urlset, "xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9");
 
     // index
     XMLNode* index_url = xml_node_new(urlset, "url", NULL);
-    XMLNode* index_loc = xml_node_new(index_url, "loc", SITE_URL "/");
+    char index_loc_str[PATH_MAX];
+    snprintf(index_loc_str, sizeof(index_loc_str), "%s/", site_url);
+    XMLNode* index_loc = xml_node_new(index_url, "loc", index_loc_str);
     (void)index_loc;
     const char* latest = NULL;
     for (size_t i = 0; i < n; i++) {
@@ -699,7 +745,7 @@ static bool write_sitemap(const char* out_path, Entry* entries, size_t n) {
     for (size_t i = 0; i < n; i++) {
         Entry* e = &entries[i];
         char loc[PATH_MAX];
-        snprintf(loc, sizeof(loc), "%s%s", SITE_URL, e->url);
+        snprintf(loc, sizeof(loc), "%s%s", site_url, e->url);
         XMLNode* url = xml_node_new(urlset, "url", NULL);
         XMLNode* loc_node = xml_node_new(url, "loc", loc);
         (void)loc_node;
@@ -803,8 +849,10 @@ int main(void) {
         e->url = xstrdup(url);
     }
 
-    if (!copy_assets()) {
+    char* site_url = get_site_url();
+    if (!copy_assets(site_url)) {
         fprintf(stderr, "Failed to copy %s to %s\n", ASSETS_DIR, OUT_DIR "/" ASSETS_DIR);
+        free(site_url);
         return 1;
     }
 
@@ -829,13 +877,18 @@ int main(void) {
     }
 
     // index
-    if (!render_index(&index_tmpl, OUT_DIR "/index.html", entries, n)) return 1;
+    if (!render_index(&index_tmpl, OUT_DIR "/index.html", entries, n)) {
+        free(site_url);
+        return 1;
+    }
 
-    if (!write_sitemap(OUT_DIR "/sitemap.xml", entries, n)) {
+    if (!write_sitemap(OUT_DIR "/sitemap.xml", site_url, entries, n)) {
         fprintf(stderr, "Failed to write %s/sitemap.xml\n", OUT_DIR);
+        free(site_url);
         return 1;
     }
 
     printf("Generated %zu entries, index.html and sitemap.xml in %s\n", n, OUT_DIR);
+    free(site_url);
     return 0;
 }
