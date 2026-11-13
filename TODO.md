@@ -7,6 +7,8 @@
 - /archive/tags (tag cloud)
 - /art (photo collage)
 
-# c package manager?
+# c package manager
+- https://github.com/clibs/clib
 
 # implement local markdown renderer
+- currently served over a cdn
