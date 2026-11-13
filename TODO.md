@@ -7,8 +7,5 @@
 - /archive/tags (tag cloud)
 - /art (photo collage)
 
-# c package manager
+# c package manager / vendor my own dependencies via git submodules?
 - https://github.com/clibs/clib
-
-# implement local markdown renderer
-- currently served over a cdn
