@@ -8,3 +8,5 @@
 - /art (photo collage)
 
 # c package manager?
+
+# implement local markdown renderer
