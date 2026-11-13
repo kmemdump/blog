@@ -12,10 +12,13 @@ int main(int argc, char *argv[]) {
 #if !defined(_MSC_VER)
   nob_cmd_append(&cmd, "cc", "-Wall", "-Wextra", "-o",
                  BUILD_FOLDER "blog-builder", SRC_FOLDER "main.c",
-                 SRC_FOLDER "tinytemplate.c");
+                 SRC_FOLDER "tinytemplate.c", SRC_FOLDER "md4c.c",
+                 SRC_FOLDER "md4c-html.c", SRC_FOLDER "entity.c");
 #else
   nob_cmd_append(&cmd, "cl", "-I.", "/Fe:" BUILD_FOLDER "blog-builder",
-                 SRC_FOLDER "main.c", SRC_FOLDER "tinytemplate.c");
+                 SRC_FOLDER "main.c", SRC_FOLDER "tinytemplate.c",
+                 SRC_FOLDER "md4c.c", SRC_FOLDER "md4c-html.c",
+                 SRC_FOLDER "entity.c");
 #endif
 
   if (!nob_cmd_run(&cmd))

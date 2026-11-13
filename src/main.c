@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #define XML_H_IMPLEMENTATION
+#include "md4c-html.h"
 #include "tinytemplate.h"
 #include "xml.h"
 
@@ -23,7 +24,6 @@
 #define TAGS_PATH ASSETS_DIR "/" TAGS_FILE
 #define OUT_DIR "build/dist"
 #define OUT_ARCHIVE_DIR "archive"
-#define ENTRY_MD_FILE "index.md"
 #define TEMPLATES_DIR "templates"
 #define MAX_WORDS 65536
 #define MAX_WORD_LEN 128
@@ -512,6 +512,36 @@ static char* html_escape(const char* s) {
 }
 
 typedef struct {
+    char* data;
+    size_t size;
+    size_t cap;
+} HtmlBuf;
+
+static void html_buf_append(const MD_CHAR* text, MD_SIZE size, void* userdata) {
+    HtmlBuf* b = userdata;
+    if (b->size + size + 1 > b->cap) {
+        while (b->size + size + 1 > b->cap) b->cap = b->cap ? b->cap * 2 : 1024;
+        b->data = xrealloc(b->data, b->cap);
+    }
+    memcpy(b->data + b->size, text, size);
+    b->size += size;
+    b->data[b->size] = 0;
+}
+
+static char* render_markdown_html(const char* md) {
+    HtmlBuf b = {0};
+    b.cap = 1024;
+    b.data = xmalloc(b.cap);
+    b.data[0] = 0;
+    unsigned parser_flags = MD_FLAG_TABLES | MD_FLAG_STRIKETHROUGH | MD_FLAG_TASKLISTS |
+                            MD_FLAG_PERMISSIVEURLAUTOLINKS | MD_FLAG_PERMISSIVEAUTOLINKS |
+                            MD_FLAG_PERMISSIVEWWWAUTOLINKS;
+    unsigned renderer_flags = 0;
+    md_html(md, (MD_SIZE)strlen(md), html_buf_append, &b, parser_flags, renderer_flags);
+    return b.data;
+}
+
+typedef struct {
     char* src;
     tinytemplate_instr_t* program;
 } Template;
@@ -572,14 +602,13 @@ static bool key_is(const char* key, size_t len, const char* name) {
 
 static void set_cstring(tinytemplate_value_t* value, const char* s) { tinytemplate_set_string(value, s, strlen(s)); }
 
-// tinytemplate writes strings as-is, so every string in a view is HTML-escaped
-// before it is handed to a template.
+// tinytemplate writes strings as-is, so string values must be HTML-escaped
+// before they are handed to a template, except pre-rendered HTML content.
 typedef struct {
     char* title;
     char* created;
     char* published;
-    char* markdown_url;
-    char* markdown;
+    char* content;  // pre-rendered HTML (not escaped)
     char** tags;
     size_t tags_count;
     size_t tags_next;
@@ -600,10 +629,8 @@ static bool entry_view_get(void* userp, const char* key, size_t len, tinytemplat
         set_cstring(value, v->created);
     else if (key_is(key, len, "published"))
         set_cstring(value, v->published);
-    else if (key_is(key, len, "markdown_url"))
-        set_cstring(value, v->markdown_url);
-    else if (key_is(key, len, "markdown"))
-        set_cstring(value, v->markdown);
+    else if (key_is(key, len, "content"))
+        set_cstring(value, v->content);
     else if (key_is(key, len, "tags")) {
         v->tags_next = 0;
         tinytemplate_set_array(value, v, entry_view_next_tag);
@@ -613,15 +640,11 @@ static bool entry_view_get(void* userp, const char* key, size_t len, tinytemplat
 }
 
 static bool render_entry(const Template* t, const Entry* e) {
-    char md_url[PATH_MAX + sizeof(ENTRY_MD_FILE)];
-    snprintf(md_url, sizeof(md_url), "%s%s", e->url, ENTRY_MD_FILE);
-
     EntryView v = {
         .title = html_escape(e->title),
         .created = html_escape(e->created_iso),
         .published = html_escape(e->last_changed_iso),
-        .markdown_url = html_escape(md_url),
-        .markdown = html_escape(e->content),
+        .content = render_markdown_html(e->content),
         .tags = xmalloc((e->tags_count ? e->tags_count : 1) * sizeof(char*)),
         .tags_count = e->tags_count,
     };
@@ -634,8 +657,7 @@ static bool render_entry(const Template* t, const Entry* e) {
     free(v.title);
     free(v.created);
     free(v.published);
-    free(v.markdown_url);
-    free(v.markdown);
+    free(v.content);
     return ok;
 }
 
@@ -867,13 +889,6 @@ int main(void) {
             return 1;
         }
         if (!render_entry(&entry_tmpl, e)) return 1;
-
-        char md_path[PATH_MAX + sizeof(ENTRY_MD_FILE) + 1];
-        snprintf(md_path, sizeof(md_path), "%s/%s", dirpath, ENTRY_MD_FILE);
-        if (!write_file(md_path, e->content)) {
-            fprintf(stderr, "Failed to write %s\n", md_path);
-            return 1;
-        }
     }
 
     // index

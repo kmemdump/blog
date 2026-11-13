@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{title}}</title>
   <link rel="stylesheet" href="/assets/style.css">
-  <script type="module" src="https://cdn.jsdelivr.net/npm/zero-md@3?register"></script>
 </head>
 <body>
   <main class="page entry-page">
@@ -18,14 +17,7 @@
         <div class="tags">Tags: {% for tag in tags %}<span class="tag">{{tag}}</span>{% end %}</div>
       </div>
     </header>
-    <zero-md class="entry-content" src="{{markdown_url}}">
-      <template data-merge="append">
-        <style>
-          .markdown-body { padding: 1rem; box-sizing: border-box; }
-        </style>
-      </template>
-    </zero-md>
-    <noscript><pre class="entry-raw">{{markdown}}</pre></noscript>
+    <article class="entry-content markdown-body">{{content}}</article>
     <footer class="site-footer">
       <p>&copy; Copyright 2026 by Krishen Mohan. Content licensed under the <a href="https://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.</p>
     </footer>
