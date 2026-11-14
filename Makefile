@@ -4,7 +4,7 @@ nob: nob.c nob.h
 	mkdir -p build && \
 	cc -Wall -Wextra -o build/nob nob.c
 
-build : nob src/main.c
+build: nob
 	./build/nob
 
 site: build
