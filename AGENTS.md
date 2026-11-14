@@ -37,6 +37,3 @@
   `assets/` without `tags`). `build/` is gitignored; generated files are not
   committed. The previously committed root `index.html` and `archive/` were
   deleted from the worktree.
-- Open: `.github/workflows/static.yml` still uploads the repo root with no build
-  step, so it no longer deploys a site until it builds and uploads `build/dist`.
-
