@@ -1,5 +1,8 @@
 .PHONY: nob build site serve clean deploy
 
+dependencies:
+	git submodule update --remote
+
 nob: nob.c nob.h
 	mkdir -p build && \
 	cc -Wall -Wextra -o build/nob nob.c
@@ -7,7 +10,7 @@ nob: nob.c nob.h
 build: nob
 	./build/nob
 
-site: build
+site: dependencies build
 	rm -rf build/dist && \
 	set -a && \
 	if [ -f .env ]; then . ./.env; fi && \
